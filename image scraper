@@ -1,0 +1,64 @@
+from bs4 import BeautifulSoup
+import requests
+import os
+import validators  # To validate URL input
+from datetime import datetime  # To generate unique filenames with timestamps
+
+def fetch_images_with_specific_path(url, match_path):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    try:
+        # Request the URL
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()  # Raise an error for bad responses (4xx or 5xx)
+
+        # Parse the content using BeautifulSoup
+        content = response.content
+        soup = BeautifulSoup(content, 'html.parser')
+
+        # Find all image tags
+        image_tags = soup.find_all('img')
+
+        # Create a directory to save images (if not already present)
+        current_dir = os.getcwd()
+        image_dir = os.path.join(current_dir, "specific_path_images")
+        os.makedirs(image_dir, exist_ok=True)
+
+        # Loop through all images and filter those matching the given path
+        for i, tag in enumerate(image_tags):
+            image_url = tag.get('src')  # Retrieve the 'src' attribute
+            if image_url and image_url.startswith(match_path):  # Check if it starts with the specified path
+                print(f"Matching image #{i + 1}: {image_url}")
+
+                # Fetch and save the image
+                try:
+                    image_response = requests.get(image_url, headers=headers, timeout=10)
+                    image_response.raise_for_status()  # Raise an error for bad responses
+
+                    # Generate a unique filename with timestamp
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')  # Format: YYYYMMDD_HHMMSS
+                    file_name = f"image_{timestamp}_{i + 1}.png"  # Add timestamp and index to filename
+                    file_path = os.path.join(image_dir, file_name)
+
+                    # Save the image content to a file
+                    with open(file_path, 'wb') as file:
+                        file.write(image_response.content)
+                    print(f"Image saved to: {file_path}")
+                except requests.exceptions.RequestException as e:
+                    print(f"Failed to fetch image {image_url}: {e}")
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred while fetching the page: {e}")
+
+# Main program loop
+while True:
+    # Ask the user to enter a URL
+    url = input("Please enter the URL to scrape images from (or type 'exit' to quit): ")
+    if url.lower() == 'exit':
+        print("Exiting the program.")
+        break
+
+    if validators.url(url):
+        fetch_images_with_specific_path(url, "https://wimg") #r34 save file path
+    else:
+        print("The provided URL is invalid. Please enter a valid URL.")
